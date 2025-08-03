@@ -44,10 +44,10 @@ export function OptimizationConfig({ beamRequirements, onOptimizationStart, onOp
 
   const optimizationMutation = useMutation({
     mutationFn: async (data: OptimizationRequest) => {
-      const response = await apiRequest("POST", "/api/optimize", data);
-      if (!response.ok) {
-        throw new Error(`Optimization failed: ${response.statusText}`);
-      }
+      const response = await apiRequest("/api/optimize", {
+        method: "POST",
+        body: JSON.stringify(data),
+      });
       return response.json() as Promise<OptimizationResult>;
     },
     onSuccess: (result) => {
