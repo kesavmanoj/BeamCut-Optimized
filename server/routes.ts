@@ -2,8 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { optimizationRequestSchema, rangeOptimizationRequestSchema, insertProjectSchema, type OptimizationRequest, type OptimizationResult, type RangeOptimizationRequest } from "@shared/schema";
-import { spawn } from "child_process";
-import path from "path";
+import { runOptimizationAlgorithm } from "./optimization-utils";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
@@ -187,39 +186,4 @@ export async function registerRoutes(app: Express): Promise<Server> {
   return httpServer;
 }
 
-async function runOptimizationAlgorithm(request: OptimizationRequest): Promise<OptimizationResult> {
-  return new Promise((resolve, reject) => {
-    const pythonScript = path.join(process.cwd(), "server", "cutting_stock_solver.py");
-    const pythonProcess = spawn("python3", [pythonScript], {
-      stdio: ["pipe", "pipe", "pipe"]
-    });
 
-    let outputData = "";
-    let errorData = "";
-
-    pythonProcess.stdout.on("data", (data) => {
-      outputData += data.toString();
-    });
-
-    pythonProcess.stderr.on("data", (data) => {
-      errorData += data.toString();
-    });
-
-    pythonProcess.on("close", (code) => {
-      if (code === 0) {
-        try {
-          const result = JSON.parse(outputData);
-          resolve(result);
-        } catch (error) {
-          reject(new Error(`Failed to parse optimization result: ${error}`));
-        }
-      } else {
-        reject(new Error(`Optimization algorithm failed with code ${code}: ${errorData}`));
-      }
-    });
-
-    // Send input data to Python script
-    pythonProcess.stdin.write(JSON.stringify(request));
-    pythonProcess.stdin.end();
-  });
-}

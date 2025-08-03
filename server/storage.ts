@@ -149,9 +149,8 @@ export class MemStorage implements IStorage {
   }
 
   async processRangeOptimization(request: RangeOptimizationRequest): Promise<RangeOptimizationResult> {
-    // Process multiple configurations within the specified ranges
-    const results = [];
-    const { masterRollLengthRange } = request;
+    const { masterRollLengthRange, beamRequirements, algorithm = "column_generation", optimizationGoal = "minimize_waste" } = request;
+    const startTime = Date.now();
     
     // Generate configurations to test
     const configurations = [];
@@ -159,44 +158,62 @@ export class MemStorage implements IStorage {
       configurations.push({ masterRollLength: length });
     }
 
-    // For demo purposes, return mock data structure
-    // In production, this would run actual optimizations for each configuration
-    const mockResults = configurations.slice(0, 5).map((config, index) => {
-      const efficiency = 85 + Math.random() * 15;
-      return {
-        masterRollLength: config.masterRollLength,
-        optimization: {
-          totalRolls: Math.ceil(Math.random() * 30 + 20),
-          efficiency,
-          wastePercentage: 100 - efficiency,
-          totalWaste: (100 - efficiency) * config.masterRollLength / 100,
-          patterns: [],
-          cuttingInstructions: [],
-          algorithmSteps: [],
-          performance: {
-            executionTime: Math.random() * 2 + 0.5,
-            memoryUsage: Math.random() * 50 + 20,
-            patternsEvaluated: Math.floor(Math.random() * 200 + 50),
-            iterations: Math.floor(Math.random() * 50 + 10),
-            convergence: "optimal" as const
-          }
-        }
-      };
+    // Import runOptimizationAlgorithm function
+    const { runOptimizationAlgorithm } = await import('./optimization-utils');
+    
+    // Run actual optimization for each configuration
+    const results = [];
+    for (const config of configurations) {
+      try {
+        const optimizationRequest = {
+          masterRollLength: config.masterRollLength,
+          beamRequirements,
+          algorithm,
+          optimizationGoal,
+          materialCost: request.materialCost
+        };
+        
+        const optimization = await runOptimizationAlgorithm(optimizationRequest);
+        
+        results.push({
+          masterRollLength: config.masterRollLength,
+          optimization
+        });
+      } catch (error) {
+        console.error(`Range optimization failed for length ${config.masterRollLength}:`, error);
+        // Continue with other configurations even if one fails
+      }
+    }
+
+    // Find best configuration
+    const bestResult = results.reduce((best, current) => {
+      if (!best) return current;
+      
+      // Choose based on optimization goal
+      switch (optimizationGoal) {
+        case "minimize_waste":
+          return current.optimization.wastePercentage < best.optimization.wastePercentage ? current : best;
+        case "minimize_rolls":
+          return current.optimization.totalRolls < best.optimization.totalRolls ? current : best;
+        case "minimize_cost":
+          return current.optimization.totalWaste < best.optimization.totalWaste ? current : best;
+        case "balance_all":
+        default:
+          return current.optimization.efficiency > best.optimization.efficiency ? current : best;
+      }
     });
 
-    const bestResult = mockResults.reduce((best, current) => 
-      current.optimization.efficiency > best.optimization.efficiency ? current : best
-    );
+    const executionTime = (Date.now() - startTime) / 1000;
 
     return {
-      results: mockResults,
+      results,
       bestConfiguration: bestResult,
       summary: {
         totalConfigurations: configurations.length,
-        bestEfficiency: Math.max(...mockResults.map(r => r.optimization.efficiency)),
-        worstEfficiency: Math.min(...mockResults.map(r => r.optimization.efficiency)),
-        averageEfficiency: mockResults.reduce((sum, r) => sum + r.optimization.efficiency, 0) / mockResults.length,
-        executionTime: configurations.length * 0.8
+        bestEfficiency: Math.max(...results.map(r => r.optimization.efficiency)),
+        worstEfficiency: Math.min(...results.map(r => r.optimization.efficiency)),
+        averageEfficiency: results.reduce((sum, r) => sum + r.optimization.efficiency, 0) / results.length,
+        executionTime
       }
     };
   }
