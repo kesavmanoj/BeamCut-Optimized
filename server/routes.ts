@@ -106,7 +106,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.updateOptimizationJob(job.id, {
           status: "completed",
           results: result,
-          executionTime: result.performance.executionTime,
+          executionTime: result.performance?.executionTime || null,
           completedAt: new Date()
         });
 

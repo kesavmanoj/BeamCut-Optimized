@@ -151,18 +151,12 @@ export class MemStorage implements IStorage {
   async processRangeOptimization(request: RangeOptimizationRequest): Promise<RangeOptimizationResult> {
     // Process multiple configurations within the specified ranges
     const results = [];
-    const { masterRollLengthRange, materialCostRange } = request;
+    const { masterRollLengthRange } = request;
     
     // Generate configurations to test
     const configurations = [];
     for (let length = masterRollLengthRange.min; length <= masterRollLengthRange.max; length += masterRollLengthRange.step) {
-      if (materialCostRange) {
-        for (let cost = materialCostRange.min; cost <= materialCostRange.max; cost += materialCostRange.step) {
-          configurations.push({ masterRollLength: length, materialCost: cost });
-        }
-      } else {
-        configurations.push({ masterRollLength: length, materialCost: undefined });
-      }
+      configurations.push({ masterRollLength: length });
     }
 
     // For demo purposes, return mock data structure
@@ -171,7 +165,6 @@ export class MemStorage implements IStorage {
       const efficiency = 85 + Math.random() * 15;
       return {
         masterRollLength: config.masterRollLength,
-        materialCost: config.materialCost,
         optimization: {
           totalRolls: Math.ceil(Math.random() * 30 + 20),
           efficiency,

@@ -24,6 +24,11 @@ interface RangeOptimizationProps {
   onComplete?: (result: RangeOptimizationResult) => void;
 }
 
+// Utility functions for formatting
+function formatPercentage(value: number): string {
+  return `${value.toFixed(1)}%`;
+}
+
 export function RangeOptimization({ beamRequirements, onComplete }: RangeOptimizationProps) {
   const [results, setResults] = useState<RangeOptimizationResult | null>(null);
   const { toast } = useToast();
@@ -36,11 +41,6 @@ export function RangeOptimization({ beamRequirements, onComplete }: RangeOptimiz
         max: 6000,
         step: 100
       },
-      materialCostRange: {
-        min: 10,
-        max: 50,
-        step: 5
-      },
       algorithm: "column_generation",
       optimizationGoal: "minimize_waste",
       beamRequirements: beamRequirements
@@ -49,10 +49,11 @@ export function RangeOptimization({ beamRequirements, onComplete }: RangeOptimiz
 
   const rangeOptimizationMutation = useMutation({
     mutationFn: async (data: RangeOptimizationRequest) => {
-      return apiRequest("/api/optimize-range", {
+      const response = await apiRequest("/api/optimize-range", {
         method: "POST",
         body: JSON.stringify(data),
       });
+      return response.json();
     },
     onSuccess: (result: RangeOptimizationResult) => {
       setResults(result);
@@ -139,49 +140,14 @@ export function RangeOptimization({ beamRequirements, onComplete }: RangeOptimiz
                   </div>
                 </div>
 
-                {/* Material Cost Range */}
+                {/* Additional Configuration Space */}
                 <div className="space-y-4">
-                  <h4 className="font-medium text-slate-900">Material Cost Range (Optional)</h4>
-                  <div className="grid grid-cols-3 gap-3">
-                    <FormField
-                      control={form.control}
-                      name="materialCostRange.min"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Min ($)</FormLabel>
-                          <FormControl>
-                            <Input type="number" step="0.01" {...field} onChange={e => field.onChange(+e.target.value)} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="materialCostRange.max"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Max ($)</FormLabel>
-                          <FormControl>
-                            <Input type="number" step="0.01" {...field} onChange={e => field.onChange(+e.target.value)} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="materialCostRange.step"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Step ($)</FormLabel>
-                          <FormControl>
-                            <Input type="number" step="0.01" {...field} onChange={e => field.onChange(+e.target.value)} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                  <h4 className="font-medium text-slate-900">Analysis Configuration</h4>
+                  <div className="bg-slate-50 p-4 rounded-lg">
+                    <p className="text-sm text-slate-600">
+                      The range analysis will test different master roll lengths to find the optimal configuration for your beam requirements.
+                      Each configuration will be optimized and compared to identify the most efficient solution.
+                    </p>
                   </div>
                 </div>
               </div>
@@ -340,12 +306,10 @@ export function RangeOptimization({ beamRequirements, onComplete }: RangeOptimiz
                       <span className="text-slate-600">Master Roll Length:</span>
                       <span className="font-medium">{results.bestConfiguration.masterRollLength}mm</span>
                     </div>
-                    {results.bestConfiguration.materialCost && (
-                      <div className="flex justify-between">
-                        <span className="text-slate-600">Material Cost:</span>
-                        <span className="font-medium">{formatCurrency(results.bestConfiguration.materialCost)}</span>
-                      </div>
-                    )}
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Configuration:</span>
+                      <Badge className="bg-blue-100 text-blue-800">Optimal</Badge>
+                    </div>
                   </div>
                 </div>
                 
@@ -416,7 +380,6 @@ export function RangeOptimization({ beamRequirements, onComplete }: RangeOptimiz
                   <thead>
                     <tr className="border-b">
                       <th className="text-left p-2">Roll Length</th>
-                      <th className="text-left p-2">Material Cost</th>
                       <th className="text-left p-2">Efficiency</th>
                       <th className="text-left p-2">Total Rolls</th>
                       <th className="text-left p-2">Waste %</th>
@@ -428,9 +391,6 @@ export function RangeOptimization({ beamRequirements, onComplete }: RangeOptimiz
                       <tr key={index} className="border-b hover:bg-slate-50">
                         <td className="p-2 font-medium">{result.masterRollLength}mm</td>
                         <td className="p-2">
-                          {result.materialCost ? formatCurrency(result.materialCost) : "N/A"}
-                        </td>
-                        <td className="p-2">
                           <Badge 
                             variant={result.optimization.efficiency >= 95 ? "default" : "secondary"}
                             className={result.optimization.efficiency >= 95 ? "bg-green-100 text-green-800" : ""}
@@ -441,7 +401,7 @@ export function RangeOptimization({ beamRequirements, onComplete }: RangeOptimiz
                         <td className="p-2">{result.optimization.totalRolls}</td>
                         <td className="p-2">{formatPercentage(result.optimization.wastePercentage)}</td>
                         <td className="p-2">
-                          {result === results.bestConfiguration ? (
+                          {result.masterRollLength === results.bestConfiguration.masterRollLength ? (
                             <Badge className="bg-green-100 text-green-800">Best</Badge>
                           ) : (
                             <Badge variant="secondary">Analyzed</Badge>

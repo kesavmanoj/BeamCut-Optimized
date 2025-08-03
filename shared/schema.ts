@@ -73,11 +73,6 @@ export const rangeOptimizationRequestSchema = z.object({
     max: z.number().min(1),
     step: z.number().min(1).default(10)
   }),
-  materialCostRange: z.object({
-    min: z.number().min(0),
-    max: z.number().min(0),
-    step: z.number().min(0.01).default(0.1)
-  }).optional(),
   algorithm: z.enum(["column_generation", "first_fit_decreasing", "best_fit_decreasing", "hybrid"]).default("column_generation"),
   optimizationGoal: z.enum(["minimize_waste", "minimize_rolls", "minimize_cost", "balance_all"]).default("minimize_waste"),
   beamRequirements: z.array(z.object({
@@ -140,12 +135,10 @@ export const optimizationResultSchema = z.object({
 export const rangeOptimizationResultSchema = z.object({
   results: z.array(z.object({
     masterRollLength: z.number(),
-    materialCost: z.number().optional(),
     optimization: optimizationResultSchema
   })),
   bestConfiguration: z.object({
     masterRollLength: z.number(),
-    materialCost: z.number().optional(),
     optimization: optimizationResultSchema
   }),
   summary: z.object({
