@@ -53,9 +53,12 @@ export function RangeOptimization({ beamRequirements, onComplete }: RangeOptimiz
         method: "POST",
         body: JSON.stringify(data),
       });
-      return response.json();
+      const result = await response.json();
+      console.log("Range optimization result:", result);
+      return result;
     },
     onSuccess: (result: RangeOptimizationResult) => {
+      console.log("Setting results:", result);
       setResults(result);
       onComplete?.(result);
       toast({
