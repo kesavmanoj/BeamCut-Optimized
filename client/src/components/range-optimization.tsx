@@ -60,7 +60,7 @@ export function RangeOptimization({ beamRequirements, onComplete }: RangeOptimiz
       onComplete?.(result);
       toast({
         title: "Range optimization completed",
-        description: `Analyzed ${result.summary.totalConfigurations} configurations. Best efficiency: ${result.summary.bestEfficiency.toFixed(2)}%`,
+        description: `Analyzed ${result.summary.totalConfigurations} configurations. Best efficiency: ${result.summary.bestEfficiency ? result.summary.bestEfficiency.toFixed(2) : '0.00'}%`,
       });
     },
     onError: (error) => {
@@ -77,8 +77,8 @@ export function RangeOptimization({ beamRequirements, onComplete }: RangeOptimiz
     rangeOptimizationMutation.mutate(data);
   };
 
-  const formatCurrency = (value: number) => `$${value.toFixed(2)}`;
-  const formatPercentage = (value: number) => `${value.toFixed(2)}%`;
+  const formatCurrency = (value: number | null | undefined) => value ? `$${value.toFixed(2)}` : '$0.00';
+  const formatPercentage = (value: number | null | undefined) => value ? `${value.toFixed(2)}%` : '0.00%';
 
   return (
     <div className="space-y-6">
@@ -278,7 +278,7 @@ export function RangeOptimization({ beamRequirements, onComplete }: RangeOptimiz
                   <div>
                     <p className="text-sm text-slate-600">Execution Time</p>
                     <p className="text-2xl font-bold">
-                      {results.summary.executionTime.toFixed(1)}s
+                      {results.summary.executionTime ? results.summary.executionTime.toFixed(1) : '0.0'}s
                     </p>
                   </div>
                   <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
@@ -341,21 +341,21 @@ export function RangeOptimization({ beamRequirements, onComplete }: RangeOptimiz
                         <span>Best</span>
                         <span>{formatPercentage(results.summary.bestEfficiency)}</span>
                       </div>
-                      <Progress value={results.summary.bestEfficiency} className="h-2" />
+                      <Progress value={results.summary.bestEfficiency || 0} className="h-2" />
                     </div>
                     <div>
                       <div className="flex justify-between text-sm mb-1">
                         <span>Average</span>
                         <span>{formatPercentage(results.summary.averageEfficiency)}</span>
                       </div>
-                      <Progress value={results.summary.averageEfficiency} className="h-2" />
+                      <Progress value={results.summary.averageEfficiency || 0} className="h-2" />
                     </div>
                     <div>
                       <div className="flex justify-between text-sm mb-1">
                         <span>Worst</span>
                         <span>{formatPercentage(results.summary.worstEfficiency)}</span>
                       </div>
-                      <Progress value={results.summary.worstEfficiency} className="h-2" />
+                      <Progress value={results.summary.worstEfficiency || 0} className="h-2" />
                     </div>
                   </div>
                 </div>
