@@ -6,12 +6,13 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Sliders, Trash2, Plus, Upload, RotateCcw, Play } from "lucide-react";
+import { Sliders, Trash2, Plus, Upload, RotateCcw, Play, FileText, Import } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { OptimizationRequest, OptimizationResult } from "@/lib/types";
@@ -44,6 +45,7 @@ export function OptimizationSetup({ onOptimizationStart, onOptimizationComplete 
     { length: 150, quantity: 3, priority: "normal" as const },
     { length: 200, quantity: 2, priority: "normal" as const }
   ]);
+  const [bulkImportText, setBulkImportText] = useState("");
 
   const form = useForm<OptimizationForm>({
     resolver: zodResolver(optimizationFormSchema),
@@ -124,6 +126,74 @@ export function OptimizationSetup({ onOptimizationStart, onOptimizationComplete 
     ]);
   };
 
+  const parseBulkImport = () => {
+    if (!bulkImportText.trim()) {
+      toast({
+        title: "No Data",
+        description: "Please paste your beam requirements data",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const lines = bulkImportText.trim().split('\n');
+      const requirements = [];
+      
+      // Skip header lines and parse data
+      let dataStarted = false;
+      for (const line of lines) {
+        const trimmedLine = line.trim();
+        if (!trimmedLine) continue;
+        
+        // Check if this looks like a data line (starts with a number)
+        if (/^\d+/.test(trimmedLine)) {
+          dataStarted = true;
+          const parts = trimmedLine.split(/\s+/);
+          if (parts.length >= 2) {
+            const length = parseInt(parts[0]);
+            const quantity = parseInt(parts[1]);
+            
+            if (!isNaN(length) && !isNaN(quantity) && length > 0 && quantity > 0) {
+              requirements.push({
+                length,
+                quantity,
+                priority: "normal" as const
+              });
+            }
+          }
+        } else if (dataStarted) {
+          // If we've started parsing data and hit a non-data line, we might have finished
+          break;
+        }
+      }
+
+      if (requirements.length === 0) {
+        toast({
+          title: "No Valid Data Found",
+          description: "Please check your data format. Expected format: Length and Quantity on each line.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setBeamRequirements(requirements);
+      form.setValue("beamRequirements", requirements);
+      setBulkImportText("");
+      
+      toast({
+        title: "Data Imported Successfully",
+        description: `Imported ${requirements.length} beam requirements`,
+      });
+    } catch (error) {
+      toast({
+        title: "Import Failed",
+        description: "Failed to parse the data. Please check the format.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const onSubmit = (data: OptimizationForm) => {
     onOptimizationStart();
     optimizationMutation.mutate({
@@ -200,10 +270,58 @@ export function OptimizationSetup({ onOptimizationStart, onOptimizationComplete 
             <div>
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-medium text-slate-900">Beam Requirements</h3>
-                <Button type="button" variant="outline" size="sm" onClick={addBeamRequirement}>
-                  <Plus className="w-4 h-4 mr-1" />
-                  Add Beam Type
-                </Button>
+                <div className="flex gap-2">
+                  <Button type="button" variant="outline" size="sm" onClick={addBeamRequirement}>
+                    <Plus className="w-4 h-4 mr-1" />
+                    Add Beam Type
+                  </Button>
+                </div>
+              </div>
+
+              {/* Bulk Import Section */}
+              <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="flex items-center mb-3">
+                  <FileText className="w-4 h-4 text-blue-600 mr-2" />
+                  <h4 className="text-sm font-medium text-blue-900">Bulk Import</h4>
+                </div>
+                <p className="text-sm text-blue-700 mb-3">
+                  Paste your data with Length and Quantity columns. Headers will be automatically detected.
+                </p>
+                <div className="space-y-3">
+                  <Textarea
+                    placeholder={`Length   Qty (Nos)
+750      16
+3154     20
+1502     16
+2383     8
+697      32
+675      16
+900      8
+3070     24`}
+                    value={bulkImportText}
+                    onChange={(e) => setBulkImportText(e.target.value)}
+                    className="min-h-[120px] font-mono text-sm"
+                  />
+                  <div className="flex gap-2">
+                    <Button 
+                      type="button" 
+                      onClick={parseBulkImport}
+                      size="sm"
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      <Import className="w-4 h-4 mr-1" />
+                      Import Data
+                    </Button>
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setBulkImportText("")}
+                    >
+                      Clear
+                    </Button>
+                  </div>
+                </div>
               </div>
               
               <div className="overflow-x-auto">
