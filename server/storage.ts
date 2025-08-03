@@ -23,6 +23,10 @@ export interface IStorage {
   // Optimization processing
   processOptimization(request: OptimizationRequest): Promise<OptimizationResult>;
   processRangeOptimization(request: RangeOptimizationRequest): Promise<RangeOptimizationResult>;
+  processRangeOptimizationWithProgress(
+    request: RangeOptimizationRequest, 
+    progressCallback: (progress: { completed: number; total: number; currentConfiguration: number }) => void
+  ): Promise<RangeOptimizationResult>;
 }
 
 export class MemStorage implements IStorage {
@@ -188,6 +192,100 @@ export class MemStorage implements IStorage {
         console.error(`Range optimization failed for length ${config.masterRollLength}:`, error);
         // Continue with other configurations even if one fails
       }
+    }
+
+    // Only proceed if we have valid results
+    if (results.length === 0) {
+      throw new Error("No valid configurations found. Please check that master roll lengths are larger than the longest beam requirement.");
+    }
+
+    // Find best configuration
+    const bestResult = results.reduce((best, current) => {
+      if (!best) return current;
+      
+      // Choose based on optimization goal
+      switch (optimizationGoal) {
+        case "minimize_waste":
+          return current.optimization.wastePercentage < best.optimization.wastePercentage ? current : best;
+        case "minimize_rolls":
+          return current.optimization.totalRolls < best.optimization.totalRolls ? current : best;
+        case "minimize_cost":
+          return current.optimization.totalWaste < best.optimization.totalWaste ? current : best;
+        case "balance_all":
+        default:
+          return current.optimization.efficiency > best.optimization.efficiency ? current : best;
+      }
+    });
+
+    const executionTime = (Date.now() - startTime) / 1000;
+
+    return {
+      results,
+      bestConfiguration: bestResult,
+      summary: {
+        totalConfigurations: results.length, // Only count valid configurations
+        bestEfficiency: Math.max(...results.map(r => r.optimization.efficiency)),
+        worstEfficiency: Math.min(...results.map(r => r.optimization.efficiency)),
+        averageEfficiency: results.reduce((sum, r) => sum + r.optimization.efficiency, 0) / results.length,
+        executionTime
+      }
+    };
+  }
+
+  async processRangeOptimizationWithProgress(
+    request: RangeOptimizationRequest, 
+    progressCallback: (progress: { completed: number; total: number; currentConfiguration: number }) => void
+  ): Promise<RangeOptimizationResult> {
+    const { masterRollLengthRange, beamRequirements, algorithm = "column_generation", optimizationGoal = "minimize_waste" } = request;
+    const startTime = Date.now();
+    
+    // Generate configurations to test
+    const configurations = [];
+    for (let length = masterRollLengthRange.min; length <= masterRollLengthRange.max; length += masterRollLengthRange.step) {
+      configurations.push({ masterRollLength: length });
+    }
+
+    // Import runOptimizationAlgorithm function
+    const { runOptimizationAlgorithm } = await import('./optimization-utils');
+    
+    // Run actual optimization for each configuration
+    const results = [];
+    let completed = 0;
+    
+    for (const config of configurations) {
+      // Send progress update
+      progressCallback({
+        completed,
+        total: configurations.length,
+        currentConfiguration: config.masterRollLength
+      });
+      
+      try {
+        const optimizationRequest = {
+          masterRollLength: config.masterRollLength,
+          beamRequirements,
+          algorithm,
+          optimizationGoal,
+          materialCost: request.materialCost
+        };
+        
+        const optimization = await runOptimizationAlgorithm(optimizationRequest);
+        
+        // Only include successful optimizations (those without errors)
+        if (!optimization.error) {
+          results.push({
+            masterRollLength: config.masterRollLength,
+            optimization
+          });
+        } else {
+          console.log(`Skipping configuration ${config.masterRollLength}mm due to error: ${optimization.error}`);
+        }
+      } catch (error) {
+        console.error(`Range optimization failed for length ${config.masterRollLength}:`, error);
+        // Continue with other configurations even if one fails
+      }
+      
+      completed++;
     }
 
     // Only proceed if we have valid results

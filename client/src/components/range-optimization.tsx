@@ -31,6 +31,11 @@ function formatPercentage(value: number): string {
 
 export function RangeOptimization({ beamRequirements, onComplete }: RangeOptimizationProps) {
   const [results, setResults] = useState<RangeOptimizationResult | null>(null);
+  const [progress, setProgress] = useState<{
+    current: number;
+    total: number;
+    currentConfiguration: number | null;
+  }>({ current: 0, total: 0, currentConfiguration: null });
   const { toast } = useToast();
 
   const form = useForm<RangeOptimizationRequest>({
@@ -49,11 +54,50 @@ export function RangeOptimization({ beamRequirements, onComplete }: RangeOptimiz
 
   const rangeOptimizationMutation = useMutation({
     mutationFn: async (data: RangeOptimizationRequest) => {
-      const response = await apiRequest("/api/optimize-range", {
-        method: "POST",
-        body: JSON.stringify(data),
+      // Calculate total configurations for progress tracking
+      const { min, max, step } = data.masterRollLengthRange;
+      const totalConfigurations = Math.floor((max - min) / step) + 1;
+      
+      setProgress({ current: 0, total: totalConfigurations, currentConfiguration: null });
+      
+      // Create EventSource for progress updates
+      const eventSource = new EventSource(`/api/optimize-range-progress?${new URLSearchParams({
+        min: min.toString(),
+        max: max.toString(),
+        step: step.toString(),
+        algorithm: data.algorithm,
+        optimizationGoal: data.optimizationGoal,
+        beamRequirements: JSON.stringify(data.beamRequirements),
+        materialCost: "0"
+      })}`);
+      
+      return new Promise<RangeOptimizationResult>((resolve, reject) => {
+        eventSource.onmessage = (event) => {
+          const progressData = JSON.parse(event.data);
+          
+          if (progressData.type === 'progress') {
+            setProgress({
+              current: progressData.completed,
+              total: progressData.total,
+              currentConfiguration: progressData.currentConfiguration
+            });
+          } else if (progressData.type === 'complete') {
+            eventSource.close();
+            setProgress({ current: 0, total: 0, currentConfiguration: null });
+            resolve(progressData.result);
+          } else if (progressData.type === 'error') {
+            eventSource.close();
+            setProgress({ current: 0, total: 0, currentConfiguration: null });
+            reject(new Error(progressData.message));
+          }
+        };
+        
+        eventSource.onerror = () => {
+          eventSource.close();
+          setProgress({ current: 0, total: 0, currentConfiguration: null });
+          reject(new Error('Connection to progress stream failed'));
+        };
       });
-      return response.json();
     },
     onSuccess: (result: RangeOptimizationResult) => {
       setResults(result);
@@ -74,6 +118,7 @@ export function RangeOptimization({ beamRequirements, onComplete }: RangeOptimiz
 
   const onSubmit = (data: RangeOptimizationRequest) => {
     setResults(null);
+    setProgress({ current: 0, total: 0, currentConfiguration: null });
     rangeOptimizationMutation.mutate(data);
   };
 
@@ -202,25 +247,43 @@ export function RangeOptimization({ beamRequirements, onComplete }: RangeOptimiz
                 />
               </div>
 
-              <div className="flex justify-end">
-                <Button 
-                  type="submit" 
-                  size="lg"
-                  disabled={rangeOptimizationMutation.isPending}
-                  className="min-w-[200px]"
-                >
-                  {rangeOptimizationMutation.isPending ? (
-                    <>
-                      <div className="animate-spin w-4 h-4 mr-2 border-2 border-white border-t-transparent rounded-full" />
-                      Optimizing...
-                    </>
-                  ) : (
-                    <>
-                      <PlayCircle className="w-4 h-4 mr-2" />
-                      Run Range Optimization
-                    </>
-                  )}
-                </Button>
+              <div className="space-y-4">
+                {/* Progress Bar */}
+                {rangeOptimizationMutation.isPending && progress.total > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm text-slate-600">
+                      <span>Analyzing configurations</span>
+                      <span>{progress.current} / {progress.total}</span>
+                    </div>
+                    <Progress value={(progress.current / progress.total) * 100} className="w-full" />
+                    {progress.currentConfiguration && (
+                      <div className="text-xs text-slate-500 text-center">
+                        Processing roll length: {progress.currentConfiguration}mm
+                      </div>
+                    )}
+                  </div>
+                )}
+                
+                <div className="flex justify-end">
+                  <Button 
+                    type="submit" 
+                    size="lg"
+                    disabled={rangeOptimizationMutation.isPending}
+                    className="min-w-[200px]"
+                  >
+                    {rangeOptimizationMutation.isPending ? (
+                      <>
+                        <div className="animate-spin w-4 h-4 mr-2 border-2 border-white border-t-transparent rounded-full" />
+                        Optimizing...
+                      </>
+                    ) : (
+                      <>
+                        <PlayCircle className="w-4 h-4 mr-2" />
+                        Run Range Optimization
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
             </form>
           </Form>

@@ -65,7 +65,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Range optimization route
+  // Range optimization with progress tracking (Server-Sent Events)
+  app.get("/api/optimize-range-progress", async (req, res) => {
+    try {
+      // Parse query parameters
+      const min = parseInt(req.query.min as string);
+      const max = parseInt(req.query.max as string);
+      const step = parseInt(req.query.step as string);
+      const algorithm = req.query.algorithm as string;
+      const optimizationGoal = req.query.optimizationGoal as string;
+      const beamRequirements = JSON.parse(req.query.beamRequirements as string);
+      const materialCost = parseFloat(req.query.materialCost as string || "0");
+
+      // Set up Server-Sent Events
+      res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Cache-Control'
+      });
+
+      // Create range optimization request
+      const request = {
+        masterRollLengthRange: { min, max, step },
+        algorithm: algorithm as any,
+        optimizationGoal: optimizationGoal as any,
+        beamRequirements,
+        materialCost
+      };
+
+      try {
+        const result = await storage.processRangeOptimizationWithProgress(request, (progress) => {
+          res.write(`data: ${JSON.stringify({
+            type: 'progress',
+            completed: progress.completed,
+            total: progress.total,
+            currentConfiguration: progress.currentConfiguration
+          })}\n\n`);
+        });
+
+        res.write(`data: ${JSON.stringify({
+          type: 'complete',
+          result
+        })}\n\n`);
+        res.end();
+      } catch (error) {
+        res.write(`data: ${JSON.stringify({
+          type: 'error',
+          message: error instanceof Error ? error.message : 'Unknown error'
+        })}\n\n`);
+        res.end();
+      }
+    } catch (error) {
+      console.error("Range optimization progress error:", error);
+      res.status(500).json({ 
+        message: "Range optimization failed", 
+        error: error instanceof Error ? error.message : "Unknown error" 
+      });
+    }
+  });
+
+  // Range optimization route (fallback)
   app.post("/api/optimize-range", async (req, res) => {
     try {
       const request = rangeOptimizationRequestSchema.parse(req.body);
