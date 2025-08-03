@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "wouter";
-import { OptimizationSetup } from "@/components/optimization-setup";
+import { BeamRequirementsInput, type BeamRequirement } from "@/components/beam-requirements-input";
+import { OptimizationConfig } from "@/components/optimization-config";
 import { AlgorithmVisualization } from "@/components/algorithm-visualization";
 import { OptimizationResults } from "@/components/optimization-results";
 import { RangeOptimization } from "@/components/range-optimization";
@@ -13,6 +14,11 @@ import type { OptimizationRequest, OptimizationResult } from "@/lib/types";
 export default function Home() {
   const [optimizationResult, setOptimizationResult] = useState<OptimizationResult | null>(null);
   const [isOptimizing, setIsOptimizing] = useState(false);
+  const [beamRequirements, setBeamRequirements] = useState<BeamRequirement[]>([
+    { length: 100, quantity: 5, priority: "normal" },
+    { length: 150, quantity: 3, priority: "normal" },
+    { length: 200, quantity: 2, priority: "normal" }
+  ]);
 
   const handleOptimizationComplete = (result: OptimizationResult) => {
     setOptimizationResult(result);
@@ -81,6 +87,13 @@ export default function Home() {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Main Content Area */}
           <div className="lg:col-span-3 space-y-8">
+            {/* Beam Requirements Input - Always shown first */}
+            <BeamRequirementsInput 
+              beamRequirements={beamRequirements}
+              onBeamRequirementsChange={setBeamRequirements}
+            />
+            
+            {/* Optimization Choice - Shown after beam requirements */}
             <Tabs defaultValue="single" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="single" className="flex items-center">
@@ -94,7 +107,8 @@ export default function Home() {
               </TabsList>
               
               <TabsContent value="single" className="space-y-8 mt-6">
-                <OptimizationSetup 
+                <OptimizationConfig 
+                  beamRequirements={beamRequirements}
                   onOptimizationStart={handleOptimizationStart}
                   onOptimizationComplete={handleOptimizationComplete}
                 />
@@ -113,11 +127,7 @@ export default function Home() {
               
               <TabsContent value="range" className="mt-6">
                 <RangeOptimization 
-                  beamRequirements={[
-                    { length: 500, quantity: 10, priority: "normal" },
-                    { length: 300, quantity: 8, priority: "high" },
-                    { length: 200, quantity: 15, priority: "normal" }
-                  ]}
+                  beamRequirements={beamRequirements}
                 />
               </TabsContent>
             </Tabs>
