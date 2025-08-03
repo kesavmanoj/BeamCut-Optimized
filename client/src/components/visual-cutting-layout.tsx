@@ -5,24 +5,40 @@ interface VisualCuttingLayoutProps {
 }
 
 export function VisualCuttingLayout({ patterns }: VisualCuttingLayoutProps) {
+  // Get all unique lengths from all patterns to create a color mapping
+  const allLengths = Array.from(new Set(
+    patterns.flatMap(pattern => pattern.cuts.map(cut => cut.length))
+  )).sort((a, b) => a - b);
+
   const getColorForLength = (length: number) => {
-    const colors = {
-      50: "bg-red-400",
-      75: "bg-orange-400", 
-      100: "bg-blue-400",
-      125: "bg-indigo-400",
-      150: "bg-purple-400",
-      180: "bg-pink-400",
-      200: "bg-orange-400",
-      250: "bg-emerald-400",
-      300: "bg-teal-400",
-      400: "bg-cyan-400"
-    };
-    return colors[length as keyof typeof colors] || "bg-gray-400";
+    const colors = [
+      "bg-red-500",
+      "bg-blue-500", 
+      "bg-green-500",
+      "bg-yellow-500",
+      "bg-purple-500",
+      "bg-pink-500",
+      "bg-indigo-500",
+      "bg-orange-500",
+      "bg-teal-500",
+      "bg-cyan-500",
+      "bg-emerald-500",
+      "bg-lime-500",
+      "bg-violet-500",
+      "bg-fuchsia-500",
+      "bg-rose-500",
+      "bg-amber-500"
+    ];
+    
+    const lengthIndex = allLengths.indexOf(length);
+    return lengthIndex >= 0 ? colors[lengthIndex % colors.length] : "bg-gray-400";
   };
 
-  const calculateSegmentWidth = (length: number, totalLength: number) => {
-    return (length / 600) * 100; // Assuming 600mm rolls for percentage calculation
+  // Calculate master roll length from the first pattern
+  const masterRollLength = patterns.length > 0 ? patterns[0].totalLength + patterns[0].waste : 600;
+  
+  const calculateSegmentWidth = (length: number) => {
+    return (length / masterRollLength) * 100;
   };
 
   return (
@@ -51,7 +67,7 @@ export function VisualCuttingLayout({ patterns }: VisualCuttingLayoutProps) {
                   
                   pattern.cuts.forEach((cut, cutIndex) => {
                     for (let i = 0; i < cut.quantity; i++) {
-                      const segmentWidth = calculateSegmentWidth(cut.length, 600);
+                      const segmentWidth = calculateSegmentWidth(cut.length);
                       segments.push(
                         <div
                           key={`${cutIndex}-${i}`}
@@ -77,7 +93,7 @@ export function VisualCuttingLayout({ patterns }: VisualCuttingLayoutProps) {
                     className="absolute top-0 h-full bg-slate-300 flex items-center justify-center text-slate-600 text-xs font-medium"
                     style={{
                       right: '0%',
-                      width: `${calculateSegmentWidth(pattern.waste, 600)}%`
+                      width: `${calculateSegmentWidth(pattern.waste)}%`
                     }}
                   >
                     Waste
@@ -101,7 +117,7 @@ export function VisualCuttingLayout({ patterns }: VisualCuttingLayoutProps) {
                         />
                       );
                     }
-                    currentPosition += calculateSegmentWidth(cut.length, 600);
+                    currentPosition += calculateSegmentWidth(cut.length);
                   }
                 });
                 
