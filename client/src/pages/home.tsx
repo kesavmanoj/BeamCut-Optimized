@@ -1,10 +1,13 @@
 import { useState } from "react";
+import { Link } from "wouter";
 import { OptimizationSetup } from "@/components/optimization-setup";
 import { AlgorithmVisualization } from "@/components/algorithm-visualization";
 import { OptimizationResults } from "@/components/optimization-results";
+import { RangeOptimization } from "@/components/range-optimization";
 import { Sidebar } from "@/components/sidebar";
 import { Button } from "@/components/ui/button";
-import { Scissors, Play, Book } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Scissors, Play, Book, FolderOpen, BarChart3, Settings } from "lucide-react";
 import type { OptimizationRequest, OptimizationResult } from "@/lib/types";
 
 export default function Home() {
@@ -36,10 +39,13 @@ export default function Home() {
                 <p className="text-xs text-slate-500">Optimization Engine</p>
               </div>
             </div>
-            <nav className="hidden md:flex space-x-6">
+            <nav className="hidden md:flex items-center space-x-6">
+              <Link href="/projects" className="text-slate-600 hover:text-primary transition-colors flex items-center">
+                <FolderOpen className="w-4 h-4 mr-1" />
+                Projects
+              </Link>
               <a href="#optimizer" className="text-slate-600 hover:text-primary transition-colors">Optimizer</a>
-              <a href="#algorithm" className="text-slate-600 hover:text-primary transition-colors">Algorithm</a>
-              <a href="#examples" className="text-slate-600 hover:text-primary transition-colors">Examples</a>
+              <a href="#range" className="text-slate-600 hover:text-primary transition-colors">Range Analysis</a>
               <a href="#docs" className="text-slate-600 hover:text-primary transition-colors">Documentation</a>
             </nav>
           </div>
@@ -72,28 +78,55 @@ export default function Home() {
       </section>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Main Content Area */}
-          <div className="lg:col-span-2 space-y-8">
-            <OptimizationSetup 
-              onOptimizationStart={handleOptimizationStart}
-              onOptimizationComplete={handleOptimizationComplete}
-            />
-            
-            {isOptimizing && (
-              <AlgorithmVisualization 
-                steps={optimizationResult?.algorithmSteps || []}
-                performance={optimizationResult?.performance}
-              />
-            )}
-            
-            {optimizationResult && (
-              <OptimizationResults result={optimizationResult} />
-            )}
+          <div className="lg:col-span-3 space-y-8">
+            <Tabs defaultValue="single" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="single" className="flex items-center">
+                  <Settings className="w-4 h-4 mr-2" />
+                  Single Optimization
+                </TabsTrigger>
+                <TabsTrigger value="range" className="flex items-center">
+                  <BarChart3 className="w-4 h-4 mr-2" />
+                  Range Analysis
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="single" className="space-y-8 mt-6">
+                <OptimizationSetup 
+                  onOptimizationStart={handleOptimizationStart}
+                  onOptimizationComplete={handleOptimizationComplete}
+                />
+                
+                {isOptimizing && (
+                  <AlgorithmVisualization 
+                    steps={optimizationResult?.algorithmSteps || []}
+                    performance={optimizationResult?.performance}
+                  />
+                )}
+                
+                {optimizationResult && (
+                  <OptimizationResults result={optimizationResult} />
+                )}
+              </TabsContent>
+              
+              <TabsContent value="range" className="mt-6">
+                <RangeOptimization 
+                  beamRequirements={[
+                    { length: 500, quantity: 10, priority: "normal" },
+                    { length: 300, quantity: 8, priority: "high" },
+                    { length: 200, quantity: 15, priority: "normal" }
+                  ]}
+                />
+              </TabsContent>
+            </Tabs>
           </div>
 
           {/* Sidebar */}
-          <Sidebar />
+          <div className="lg:col-span-1">
+            <Sidebar />
+          </div>
         </div>
       </div>
 

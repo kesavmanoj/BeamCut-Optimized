@@ -1,11 +1,85 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { optimizationRequestSchema, type OptimizationRequest, type OptimizationResult } from "@shared/schema";
+import { optimizationRequestSchema, rangeOptimizationRequestSchema, insertProjectSchema, type OptimizationRequest, type OptimizationResult, type RangeOptimizationRequest } from "@shared/schema";
 import { spawn } from "child_process";
 import path from "path";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  
+  // Project management routes
+  app.get("/api/projects", async (req, res) => {
+    try {
+      const projects = await storage.getProjects();
+      res.json(projects);
+    } catch (error) {
+      console.error("Error fetching projects:", error);
+      res.status(500).json({ message: "Failed to fetch projects" });
+    }
+  });
+
+  app.post("/api/projects", async (req, res) => {
+    try {
+      const projectData = insertProjectSchema.parse(req.body);
+      const project = await storage.createProject(projectData);
+      res.status(201).json(project);
+    } catch (error) {
+      console.error("Error creating project:", error);
+      res.status(500).json({ message: "Failed to create project" });
+    }
+  });
+
+  app.get("/api/projects/:id", async (req, res) => {
+    try {
+      const project = await storage.getProject(req.params.id);
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      res.json(project);
+    } catch (error) {
+      console.error("Error fetching project:", error);
+      res.status(500).json({ message: "Failed to fetch project" });
+    }
+  });
+
+  app.put("/api/projects/:id", async (req, res) => {
+    try {
+      const updates = req.body;
+      const project = await storage.updateProject(req.params.id, updates);
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      res.json(project);
+    } catch (error) {
+      console.error("Error updating project:", error);
+      res.status(500).json({ message: "Failed to update project" });
+    }
+  });
+
+  app.delete("/api/projects/:id", async (req, res) => {
+    try {
+      await storage.deleteProject(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting project:", error);
+      res.status(500).json({ message: "Failed to delete project" });
+    }
+  });
+
+  // Range optimization route
+  app.post("/api/optimize-range", async (req, res) => {
+    try {
+      const request = rangeOptimizationRequestSchema.parse(req.body);
+      const result = await storage.processRangeOptimization(request);
+      res.json(result);
+    } catch (error) {
+      console.error("Range optimization error:", error);
+      res.status(500).json({ 
+        message: "Range optimization failed", 
+        error: error instanceof Error ? error.message : "Unknown error" 
+      });
+    }
+  });
   
   // Optimize cutting stock
   app.post("/api/optimize", async (req, res) => {

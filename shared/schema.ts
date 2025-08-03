@@ -41,8 +41,19 @@ export type InsertBeamRequirement = z.infer<typeof insertBeamRequirementSchema>;
 export type OptimizationJob = typeof optimizationJobs.$inferSelect;
 export type InsertOptimizationJob = z.infer<typeof insertOptimizationJobSchema>;
 
+// Project management schema
+export const projects = pgTable("projects", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name").notNull().unique(),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  lastOptimizationId: varchar("last_optimization_id")
+});
+
 // Frontend types for optimization
 export const optimizationRequestSchema = z.object({
+  projectId: z.string().optional(),
   masterRollLength: z.number().min(1),
   materialCost: z.number().optional(),
   algorithm: z.enum(["column_generation", "first_fit_decreasing", "best_fit_decreasing", "hybrid"]).default("column_generation"),
@@ -54,7 +65,38 @@ export const optimizationRequestSchema = z.object({
   })).min(1)
 });
 
+// Range optimization schema
+export const rangeOptimizationRequestSchema = z.object({
+  projectId: z.string().optional(),
+  masterRollLengthRange: z.object({
+    min: z.number().min(1),
+    max: z.number().min(1),
+    step: z.number().min(1).default(10)
+  }),
+  materialCostRange: z.object({
+    min: z.number().min(0),
+    max: z.number().min(0),
+    step: z.number().min(0.01).default(0.1)
+  }).optional(),
+  algorithm: z.enum(["column_generation", "first_fit_decreasing", "best_fit_decreasing", "hybrid"]).default("column_generation"),
+  optimizationGoal: z.enum(["minimize_waste", "minimize_rolls", "minimize_cost", "balance_all"]).default("minimize_waste"),
+  beamRequirements: z.array(z.object({
+    length: z.number().min(1),
+    quantity: z.number().min(1),
+    priority: z.enum(["low", "normal", "high"]).default("normal")
+  })).min(1)
+});
+
+export const insertProjectSchema = createInsertSchema(projects).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true
+});
+
+export type Project = typeof projects.$inferSelect;
+export type InsertProject = z.infer<typeof insertProjectSchema>;
 export type OptimizationRequest = z.infer<typeof optimizationRequestSchema>;
+export type RangeOptimizationRequest = z.infer<typeof rangeOptimizationRequestSchema>;
 
 export const optimizationResultSchema = z.object({
   totalRolls: z.number(),
@@ -95,4 +137,25 @@ export const optimizationResultSchema = z.object({
   })
 });
 
+export const rangeOptimizationResultSchema = z.object({
+  results: z.array(z.object({
+    masterRollLength: z.number(),
+    materialCost: z.number().optional(),
+    optimization: optimizationResultSchema
+  })),
+  bestConfiguration: z.object({
+    masterRollLength: z.number(),
+    materialCost: z.number().optional(),
+    optimization: optimizationResultSchema
+  }),
+  summary: z.object({
+    totalConfigurations: z.number(),
+    bestEfficiency: z.number(),
+    worstEfficiency: z.number(),
+    averageEfficiency: z.number(),
+    executionTime: z.number()
+  })
+});
+
 export type OptimizationResult = z.infer<typeof optimizationResultSchema>;
+export type RangeOptimizationResult = z.infer<typeof rangeOptimizationResultSchema>;
