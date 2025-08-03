@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { VisualCuttingLayout } from "./visual-cutting-layout";
 import { TrendingUp, Download, FileSpreadsheet, Scroll, Leaf, AlertTriangle, DollarSign } from "lucide-react";
-import type { OptimizationResult } from "@/lib/types";
+import type { OptimizationResult } from "@shared/schema";
 
 interface OptimizationResultsProps {
   result: OptimizationResult;

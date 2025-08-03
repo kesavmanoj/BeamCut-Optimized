@@ -11,7 +11,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Sliders, Play } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { OptimizationRequest, OptimizationResult } from "@/lib/types";
+import type { OptimizationRequest, OptimizationResult } from "@shared/schema";
 import type { BeamRequirement } from "./beam-requirements-input";
 
 const optimizationFormSchema = z.object({

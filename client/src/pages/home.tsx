@@ -9,7 +9,7 @@ import { Sidebar } from "@/components/sidebar";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Scissors, Play, Book, FolderOpen, BarChart3, Settings } from "lucide-react";
-import type { OptimizationRequest, OptimizationResult } from "@/lib/types";
+import type { OptimizationRequest, OptimizationResult } from "@shared/schema";
 
 export default function Home() {
   const [optimizationResult, setOptimizationResult] = useState<OptimizationResult | null>(null);

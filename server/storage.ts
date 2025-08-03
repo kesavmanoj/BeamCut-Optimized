@@ -175,14 +175,24 @@ export class MemStorage implements IStorage {
         
         const optimization = await runOptimizationAlgorithm(optimizationRequest);
         
-        results.push({
-          masterRollLength: config.masterRollLength,
-          optimization
-        });
+        // Only include successful optimizations (those without errors)
+        if (!optimization.error) {
+          results.push({
+            masterRollLength: config.masterRollLength,
+            optimization
+          });
+        } else {
+          console.log(`Skipping configuration ${config.masterRollLength}mm due to error: ${optimization.error}`);
+        }
       } catch (error) {
         console.error(`Range optimization failed for length ${config.masterRollLength}:`, error);
         // Continue with other configurations even if one fails
       }
+    }
+
+    // Only proceed if we have valid results
+    if (results.length === 0) {
+      throw new Error("No valid configurations found. Please check that master roll lengths are larger than the longest beam requirement.");
     }
 
     // Find best configuration
@@ -209,7 +219,7 @@ export class MemStorage implements IStorage {
       results,
       bestConfiguration: bestResult,
       summary: {
-        totalConfigurations: configurations.length,
+        totalConfigurations: results.length, // Only count valid configurations
         bestEfficiency: Math.max(...results.map(r => r.optimization.efficiency)),
         worstEfficiency: Math.min(...results.map(r => r.optimization.efficiency)),
         averageEfficiency: results.reduce((sum, r) => sum + r.optimization.efficiency, 0) / results.length,
